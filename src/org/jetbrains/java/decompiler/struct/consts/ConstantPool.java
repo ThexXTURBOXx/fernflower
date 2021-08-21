@@ -8,6 +8,7 @@ import org.jetbrains.java.decompiler.struct.gen.FieldDescriptor;
 import org.jetbrains.java.decompiler.struct.gen.MethodDescriptor;
 import org.jetbrains.java.decompiler.struct.gen.NewClassNameBuilder;
 import org.jetbrains.java.decompiler.struct.gen.VarType;
+import org.jetbrains.java.decompiler.util.Compat;
 import org.jetbrains.java.decompiler.util.DataInputFullStream;
 
 import java.io.DataInputStream;
@@ -213,7 +214,7 @@ public class ConstantPool implements NewClassNameBuilder {
     if (newName != null) {
       StringBuilder buffer = new StringBuilder();
       if (vt.arrayDim > 0) {
-        buffer.append("[".repeat(vt.arrayDim)).append('L').append(newName).append(';');
+        buffer.append(Compat.repeat("[", vt.arrayDim)).append('L').append(newName).append(';');
       }
       else {
         buffer.append(newName);
