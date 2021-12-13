@@ -3,6 +3,7 @@ package org.jetbrains.java.decompiler.struct;
 
 import org.jetbrains.java.decompiler.code.CodeConstants;
 import org.jetbrains.java.decompiler.struct.attr.StructGeneralAttribute;
+import org.jetbrains.java.decompiler.struct.attr.StructPermittedSubclassesAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructRecordAttribute;
 import org.jetbrains.java.decompiler.struct.consts.ConstantPool;
 import org.jetbrains.java.decompiler.struct.consts.PrimitiveConstant;
@@ -160,6 +161,12 @@ public class StructClass extends StructMember {
     return recordAttr.getComponents();
   }
 
+  public List<String> getPermittedSubclasses() {
+    StructPermittedSubclassesAttribute permittedSubClassAttr = getAttribute(StructGeneralAttribute.ATTRIBUTE_PERMITTED_SUBCLASSES);
+    if (permittedSubClassAttr == null) return null;
+    return permittedSubClassAttr.getClasses();
+  }
+
   public int[] getInterfaces() {
     return interfaces;
   }
@@ -195,6 +202,10 @@ public class StructClass extends StructMember {
 
   public boolean isVersion8() {
     return majorVersion >= CodeConstants.BYTECODE_JAVA_8;
+  }
+
+  public boolean isVersion16() {
+    return majorVersion >= CodeConstants.BYTECODE_JAVA_16;
   }
 
   @Override
