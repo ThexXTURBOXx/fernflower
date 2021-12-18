@@ -1,4 +1,4 @@
-// Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.java.decompiler.struct;
 
 import org.jetbrains.java.decompiler.code.CodeConstants;
@@ -202,6 +202,14 @@ public class StructClass extends StructMember {
 
   public boolean isVersion8() {
     return majorVersion >= CodeConstants.BYTECODE_JAVA_8;
+  }
+
+  public boolean hasSealedClassesSupport() {
+    return majorVersion >= CodeConstants.BYTECODE_JAVA_17 || (majorVersion >= CodeConstants.BYTECODE_JAVA_15 && isPreviewVersion());
+  }
+
+  public boolean isPreviewVersion() {
+    return minorVersion == 0xFFFF;
   }
 
   public boolean isVersion16() {
