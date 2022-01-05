@@ -3,6 +3,7 @@ package org.jetbrains.java.decompiler.util;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -26,6 +27,21 @@ public final class Compat {
   @SuppressWarnings("unchecked")
   public static <T> Set<T> setOf(T... objs) {
     return new HashSet<>(Arrays.asList(objs));
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> List<T> copyOf(List<T> list) {
+    return (List<T>) Arrays.asList(list.toArray());
+  }
+
+  public static class VarReference<T> {
+
+    public T obj;
+
+    public VarReference(T obj) {
+      this.obj = obj;
+    }
+
   }
 
   private Compat() {
