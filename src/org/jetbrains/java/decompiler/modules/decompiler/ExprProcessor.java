@@ -1,4 +1,4 @@
-// Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
+// Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.java.decompiler.modules.decompiler;
 
 import org.jetbrains.java.decompiler.code.CodeConstants;
@@ -7,15 +7,17 @@ import org.jetbrains.java.decompiler.code.InstructionSequence;
 import org.jetbrains.java.decompiler.code.cfg.BasicBlock;
 import org.jetbrains.java.decompiler.main.DecompilerContext;
 import org.jetbrains.java.decompiler.main.collectors.BytecodeMappingTracer;
+import org.jetbrains.java.decompiler.modules.decompiler.StatEdge.EdgeType;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.*;
 import org.jetbrains.java.decompiler.modules.decompiler.sforms.DirectGraph;
 import org.jetbrains.java.decompiler.modules.decompiler.sforms.DirectNode;
 import org.jetbrains.java.decompiler.modules.decompiler.sforms.FlattenStatementsHelper;
 import org.jetbrains.java.decompiler.modules.decompiler.sforms.FlattenStatementsHelper.FinallyPathWrapper;
 import org.jetbrains.java.decompiler.modules.decompiler.stats.*;
-import org.jetbrains.java.decompiler.modules.decompiler.typeann.TypePathWriteProgress;
+import org.jetbrains.java.decompiler.modules.decompiler.typeann.TypeAnnotationWriteHelper;
 import org.jetbrains.java.decompiler.modules.decompiler.vars.VarProcessor;
 import org.jetbrains.java.decompiler.struct.StructClass;
+import org.jetbrains.java.decompiler.struct.StructTypePathEntry;
 import org.jetbrains.java.decompiler.struct.attr.StructBootstrapMethodsAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructGeneralAttribute;
 import org.jetbrains.java.decompiler.struct.consts.ConstantPool;
@@ -28,6 +30,7 @@ import org.jetbrains.java.decompiler.util.Compat;
 import org.jetbrains.java.decompiler.util.TextBuffer;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class ExprProcessor implements CodeConstants {
   @SuppressWarnings("SpellCheckingInspection")
@@ -159,7 +162,7 @@ public class ExprProcessor implements CodeConstants {
 
       String currentEntrypoint = entryPoints.isEmpty() ? null : entryPoints.getLast();
 
-      for (DirectNode nd : node.succs) {
+      for (DirectNode nd : node.successors) {
         boolean isSuccessor = true;
 
         if (currentEntrypoint != null && dgraph.mapLongRangeFinallyPaths.containsKey(node.id)) {
@@ -645,18 +648,27 @@ public class ExprProcessor implements CodeConstants {
     }
   }
 
-  public static String getTypeName(VarType type, List<TypePathWriteProgress> typePathWriteStack) {
+  public static String getTypeName(VarType type, List<TypeAnnotationWriteHelper> typePathWriteStack) {
     return getTypeName(type, true, typePathWriteStack);
   }
 
-  public static String getTypeName(VarType type, boolean getShort, List<TypePathWriteProgress> typePathWriteStack) {
+  public static String getTypeName(VarType type, boolean getShort, List<TypeAnnotationWriteHelper> typePathWriteStack) {
     int tp = type.type;
     StringBuilder sb = new StringBuilder();
-    for (TypePathWriteProgress writeProgress : typePathWriteStack) {
-      if (writeProgress.getPaths().size() == type.arrayDim) {
-        writeProgress.writeTypeAnnotation(sb);
+    typePathWriteStack.removeIf(typeAnnotationWriteHelper -> {
+      StructTypePathEntry path = typeAnnotationWriteHelper.getPaths().peek();
+      if (path == null && type.arrayDim == 0) { // nested type
+        typeAnnotationWriteHelper.writeTo(sb);
+        return true;
       }
-    }
+      if (path != null && path.getTypePathEntryKind() == StructTypePathEntry.Kind.ARRAY.getOpcode() &&
+        typeAnnotationWriteHelper.getPaths().size() == type.arrayDim
+      ) {
+        typeAnnotationWriteHelper.writeTo(sb);
+        return true;
+      }
+      return false;
+    });
     if (tp <= CodeConstants.TYPE_BOOLEAN) {
       sb.append(typeNames[tp]);
       return sb.toString();
@@ -674,43 +686,83 @@ public class ExprProcessor implements CodeConstants {
       return sb.toString();
     }
     else if (tp == CodeConstants.TYPE_OBJECT) {
-      String ret = buildJavaClassName(type.value);
+      String ret;
       if (getShort) {
-        ret = DecompilerContext.getImportCollector().getShortName(ret);
+        ret = DecompilerContext.getImportCollector().getShortName(type.value);
+      } else {
+        ret = buildJavaClassName(type.value);
       }
 
       if (ret == null) {
         // FIXME: a warning should be logged
-        ret = UNDEFINED_TYPE_STRING;
+        return UNDEFINED_TYPE_STRING;
       }
-      sb.append(ret);
+
+      String[] nestedClasses = ret.split("\\.");
+      for (int i = 0; i < nestedClasses.length; i++) {
+        String nestedType = nestedClasses[i];
+        if (i != 0) { // first annotation is written already
+          checkNestedTypeAnnotation(sb, typePathWriteStack);
+        }
+
+        sb.append(nestedType);
+        if (i != nestedClasses.length - 1) sb.append(".");
+      }
+
       return sb.toString();
     }
 
     throw new RuntimeException("invalid type");
   }
 
-  public static String getCastTypeName(VarType type, List<TypePathWriteProgress> typePathWriteStack) {
+  public static void checkNestedTypeAnnotation(StringBuilder sb, List<TypeAnnotationWriteHelper> typePathWriteStack) {
+    typePathWriteStack.removeIf(typeAnnotationWriteHelper -> {
+      StructTypePathEntry path = typeAnnotationWriteHelper.getPaths().peek();
+      if (path != null && path.getTypePathEntryKind() == StructTypePathEntry.Kind.NESTED.getOpcode()) {
+        typeAnnotationWriteHelper.getPaths().pop();
+        if (typeAnnotationWriteHelper.getPaths().isEmpty()) {
+          typeAnnotationWriteHelper.writeTo(sb);
+          return true;
+        }
+      }
+      return false;
+    });
+  }
+
+  public static String getCastTypeName(VarType type, List<TypeAnnotationWriteHelper> typePathWriteStack) {
     return getCastTypeName(type, true, typePathWriteStack);
   }
 
-  public static String getCastTypeName(VarType type, boolean getShort, List<TypePathWriteProgress> typePathWriteStack) {
-    StringBuilder sb = new StringBuilder(getTypeName(type, getShort, typePathWriteStack));
-    writeArray(sb, type.arrayDim, typePathWriteStack);
+  public static String getCastTypeName(VarType type, boolean getShort, List<TypeAnnotationWriteHelper> typePathWriteStack) {
+    List<TypeAnnotationWriteHelper> arrayPaths = new ArrayList<>();
+    List<TypeAnnotationWriteHelper> notArrayPath = typePathWriteStack.stream().filter(stack -> {
+      boolean isArrayPath = stack.getPaths().size() < type.arrayDim;
+      if (stack.getPaths().size() > type.arrayDim) {
+        for (int i = 0; i < type.arrayDim; i++) {
+          stack.getPaths().poll(); // remove all trailing
+        }
+      }
+      if (isArrayPath) {
+        arrayPaths.add(stack);
+      }
+      return !isArrayPath;
+    }).collect(Collectors.toList());
+    StringBuilder sb = new StringBuilder(getTypeName(type, getShort, notArrayPath));
+    writeArray(sb, type.arrayDim, arrayPaths);
     return sb.toString();
   }
 
-  public static void writeArray(StringBuilder sb, int arrayDim, List<TypePathWriteProgress> typePathWriteStack) {
+  public static void writeArray(StringBuilder sb, int arrayDim, List<TypeAnnotationWriteHelper> typePathWriteStack) {
     for (int i = 0; i < arrayDim; i++) {
-      Compat.VarReference<Boolean> ref = new Compat.VarReference<Boolean>(true);
+      Compat.VarReference<Boolean> ref = new Compat.VarReference<>(true);
       final int it = i;
-      typePathWriteStack.removeIf(writeProgress -> {
-        if (it == writeProgress.getPaths().size()) {
+      typePathWriteStack.removeIf(writeHelper -> {
+        if (it == writeHelper.getPaths().size()) {
           if (ref.obj) {
             sb.append(' ');
             ref.obj = false;
           }
-          writeProgress.writeTypeAnnotation(sb);
+          writeHelper.writeTo(sb);
           return true;
         }
         return false;
@@ -751,20 +803,19 @@ public class ExprProcessor implements CodeConstants {
   public static TextBuffer jmpWrapper(Statement stat, int indent, boolean semicolon, BytecodeMappingTracer tracer) {
     TextBuffer buf = stat.toJava(indent, tracer);
 
-    List<StatEdge> lstSuccs = stat.getSuccessorEdges(Statement.STATEDGE_DIRECT_ALL);
+    List<StatEdge> lstSuccs = stat.getSuccessorEdges(EdgeType.DIRECT_ALL);
     if (lstSuccs.size() == 1) {
       StatEdge edge = lstSuccs.get(0);
-      if (edge.getType() != StatEdge.TYPE_REGULAR && edge.explicit && edge.getDestination().type != Statement.TYPE_DUMMY_EXIT) {
+      if (edge.getType() != EdgeType.REGULAR && edge.explicit && edge.getDestination().type != Statement.TYPE_DUMMY_EXIT) {
         buf.appendIndent(indent);
 
-        switch (edge.getType()) {
-          case StatEdge.TYPE_BREAK:
-            addDeletedGotoInstructionMapping(stat, tracer);
-            buf.append("break");
-            break;
-          case StatEdge.TYPE_CONTINUE:
-            addDeletedGotoInstructionMapping(stat, tracer);
-            buf.append("continue");
+        if (EdgeType.BREAK.equals(edge.getType())) {
+          addDeletedGotoInstructionMapping(stat, tracer);
+          buf.append("break");
+        }
+        else if (EdgeType.CONTINUE.equals(edge.getType())) {
+          addDeletedGotoInstructionMapping(stat, tracer);
+          buf.append("continue");
         }
 
         if (edge.labeled) {

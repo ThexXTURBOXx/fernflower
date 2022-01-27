@@ -140,8 +140,7 @@ public class SingleClassesTest {
   @Test public void testPackageInfo() { doTest("pkg/package-info"); }
   @Test public void testIntVarMerge() { doTest("pkg/TestIntVarMerge"); }
   @Test public void testSwitchOnStringsJavac() { doTest("pkg/TestSwitchOnStringsJavac"); }
-  // todo for ecj
-  //@Test public void testSwitchOnStringsEcj() { doTest("pkg/TestSwitchOnStringsEcj"); }
+  @Test public void testSwitchOnStringsEcj() { doTest("pkg/TestSwitchOnStringsEcj"); }
 
   // TODO: fix all below
   //@Test public void testUnionType() { doTest("pkg/TestUnionType"); }
@@ -186,27 +185,40 @@ public class SingleClassesTest {
   @Test public void testGenericArrayTypeAnnotations() {doTest("typeAnnotations/GenericArrayTypeAnnotations",
       "typeAnnotations/A", "typeAnnotations/B", "typeAnnotations/C", "typeAnnotations/D", "typeAnnotations/E", "typeAnnotations/F");
   }
+  @Test public void testNestedTypeAnnotations() {doTest("typeAnnotations/NestedTypeAnnotations",
+    "typeAnnotations/A", "typeAnnotations/B", "typeAnnotations/C", "typeAnnotations/D", "typeAnnotations/E",
+    "typeAnnotations/F", "typeAnnotations/Z");
+  }
+  @Test public void testArrayNestedTypeAnnotations() {doTest("typeAnnotations/ArrayNestedTypeAnnotations",
+    "typeAnnotations/A", "typeAnnotations/B", "typeAnnotations/C", "typeAnnotations/D", "typeAnnotations/Z");
+  }
+  @Test public void testGenericNestedTypeAnnotations() {doTest("typeAnnotations/GenericNestedTypeAnnotations",
+    "typeAnnotations/A", "typeAnnotations/B", "typeAnnotations/C", "typeAnnotations/D", "typeAnnotations/E",
+    "typeAnnotations/V");
+  }
+  @Test public void testGenericArrayNestedTypeAnnotations() {doTest("typeAnnotations/GenericArrayNestedTypeAnnotations",
+    "typeAnnotations/A", "typeAnnotations/B", "typeAnnotations/C", "typeAnnotations/D", "typeAnnotations/E",
+    "typeAnnotations/F", "typeAnnotations/V");
+  }
+  @Test public void testClassSuperTypeAnnotations() {doTest("typeAnnotations/ClassSuperTypeAnnotations",
+    "typeAnnotations/A", "typeAnnotations/B", "typeAnnotations/F");
+  }
+  @Test public void testInterfaceSuperTypeAnnotations() {doTest("typeAnnotations/InterfaceSuperTypeAnnotations",
+    "typeAnnotations/A", "typeAnnotations/B", "typeAnnotations/F");
+  }
+  @Test public void testMemberDeclarationTypeAnnotations() {doTest("typeAnnotations/MemberDeclarationTypeAnnotations",
+    "typeAnnotations/A", "typeAnnotations/B", "typeAnnotations/C", "typeAnnotations/D", "typeAnnotations/E",  "typeAnnotations/K");
+  }
   @Test public void testInheritanceChainCycle() { doTest("pkg/TestInheritanceChainCycle"); }
   @Test public void testDynamicConstantPoolEntry() { doTest("java11/TestDynamicConstantPoolEntry"); }
 
-  @Test
-  public void testInstanceof() {
-    doTest("patterns/TestInstanceof");
-  }
 
-  @Test
-  public void testInvertedInstanceof() {
-    doTest("patterns/TestInvertedInstanceof");
+  @Test public void testInstanceofWithPattern() {
+    doTest("patterns/TestInstanceofWithPattern");
   }
-
-  @Test
-  public void testInstanceofBinaryExpr() {
-    doTest("patterns/TestInstanceofBinaryExpr");
-  }
-
-  @Test
-  public void testInstanceofVarNotSupported() {
-    doTest("patterns/TestInstanceofVarNotSupported");
+  @Test public void testInstanceofVarNotSupported() {
+    // bytecode version of this test data doesn't support patterns in instanceof, so no modifications regarding that are applied
+    doTest("patterns/TestInstanceofPatternNotSupported");
   }
 
   @Test(expected = ClassFormatException.class)

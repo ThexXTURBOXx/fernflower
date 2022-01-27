@@ -4,9 +4,11 @@ package org.jetbrains.java.decompiler.modules.decompiler;
 import org.jetbrains.java.decompiler.code.cfg.BasicBlock;
 import org.jetbrains.java.decompiler.main.DecompilerContext;
 import org.jetbrains.java.decompiler.main.collectors.CounterContainer;
+import org.jetbrains.java.decompiler.modules.decompiler.StatEdge.EdgeType;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.Exprent;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.IfExprent;
 import org.jetbrains.java.decompiler.modules.decompiler.stats.*;
+import org.jetbrains.java.decompiler.modules.decompiler.stats.DoStatement.LoopType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,10 +37,10 @@ public final class MergeHelper {
   }
 
   private static boolean enhanceLoop(DoStatement stat) {
-    int oldloop = stat.getLooptype();
+    LoopType oldLoop = stat.getLoopType();
 
-    switch (oldloop) {
-      case DoStatement.LOOP_DO:
+    switch (oldLoop) {
+      case DO:
 
         // identify a while loop
         if (matchWhile(stat)) {
@@ -51,11 +53,11 @@ public final class MergeHelper {
         }
 
         break;
-      case DoStatement.LOOP_WHILE:
+      case WHILE:
         matchFor(stat);
     }
 
-    return (stat.getLooptype() != oldloop);
+    return (stat.getLoopType() != oldLoop);
   }
 
   private static void matchDoWhile(DoStatement stat) {
@@ -71,22 +73,22 @@ public final class MergeHelper {
         StatEdge ifedge = lastif.getIfEdge();
         StatEdge elseedge = lastif.getAllSuccessorEdges().get(0);
 
-        if ((ifedge.getType() == StatEdge.TYPE_BREAK && elseedge.getType() == StatEdge.TYPE_CONTINUE && elseedge.closure == stat
+        if ((ifedge.getType() == EdgeType.BREAK && elseedge.getType() == EdgeType.CONTINUE && elseedge.closure == stat
              && isDirectPath(stat, ifedge.getDestination())) ||
-            (ifedge.getType() == StatEdge.TYPE_CONTINUE && elseedge.getType() == StatEdge.TYPE_BREAK && ifedge.closure == stat
+            (ifedge.getType() == EdgeType.CONTINUE && elseedge.getType() == EdgeType.BREAK && ifedge.closure == stat
              && isDirectPath(stat, elseedge.getDestination()))) {
 
-          Set<Statement> set = stat.getNeighboursSet(StatEdge.TYPE_CONTINUE, Statement.DIRECTION_BACKWARD);
+          Set<Statement> set = stat.getNeighboursSet(EdgeType.CONTINUE, Statement.DIRECTION_BACKWARD);
           set.remove(last);
 
           if (!set.isEmpty()) {
             return;
           }
 
-          stat.setLooptype(DoStatement.LOOP_DOWHILE);
+          stat.setLoopType(LoopType.DO_WHILE);
 
           IfExprent ifexpr = (IfExprent)lastif.getHeadexprent().copy();
-          if (ifedge.getType() == StatEdge.TYPE_BREAK) {
+          if (ifedge.getType() == EdgeType.BREAK) {
             ifexpr.negateIf();
           }
           stat.setConditionExprent(ifexpr.getCondition());
@@ -100,13 +102,13 @@ public final class MergeHelper {
           else {
             lastif.setExprents(lastif.getFirst().getExprents());
 
-            StatEdge newedge = new StatEdge(StatEdge.TYPE_CONTINUE, lastif, stat);
+            StatEdge newedge = new StatEdge(EdgeType.CONTINUE, lastif, stat);
             lastif.addSuccessor(newedge);
             stat.addLabeledEdge(newedge);
           }
 
           if (stat.getAllSuccessorEdges().isEmpty()) {
-            StatEdge edge = elseedge.getType() == StatEdge.TYPE_CONTINUE ? ifedge : elseedge;
+            StatEdge edge = elseedge.getType() == EdgeType.CONTINUE ? ifedge : elseedge;
 
             edge.setSource(stat);
             if (edge.closure == stat) {
@@ -138,7 +140,7 @@ public final class MergeHelper {
             StatEdge ifedge = firstif.getIfEdge();
             if (isDirectPath(stat, ifedge.getDestination())) {
               // exit condition identified
-              stat.setLooptype(DoStatement.LOOP_WHILE);
+              stat.setLoopType(LoopType.WHILE);
 
               // negate condition (while header)
               IfExprent ifexpr = (IfExprent)firstif.getHeadexprent().copy();
@@ -178,7 +180,7 @@ public final class MergeHelper {
             StatEdge elseedge = firstif.getAllSuccessorEdges().get(0);
             if (isDirectPath(stat, elseedge.getDestination())) {
               // exit condition identified
-              stat.setLooptype(DoStatement.LOOP_WHILE);
+              stat.setLoopType(LoopType.WHILE);
 
               // no need to negate the while condition
               stat.setConditionExprent(((IfExprent)firstif.getHeadexprent().copy()).getCondition());
@@ -212,7 +214,7 @@ public final class MergeHelper {
                 first.getParent().replaceStatement(first, firstif.getIfstat());
 
                 // lift closures
-                for (StatEdge prededge : elseedge.getDestination().getPredecessorEdges(StatEdge.TYPE_BREAK)) {
+                for (StatEdge prededge : elseedge.getDestination().getPredecessorEdges(EdgeType.BREAK)) {
                   if (stat.containsStatementStrict(prededge.closure)) {
                     stat.addLabeledEdge(prededge);
                   }
@@ -232,7 +234,7 @@ public final class MergeHelper {
 
   public static boolean isDirectPath(Statement stat, Statement endstat) {
 
-    Set<Statement> setStat = stat.getNeighboursSet(Statement.STATEDGE_DIRECT_ALL, Statement.DIRECTION_FORWARD);
+    Set<Statement> setStat = stat.getNeighboursSet(EdgeType.DIRECT_ALL, Statement.DIRECTION_FORWARD);
     if (setStat.isEmpty()) {
       Statement parent = stat.getParent();
       if (parent == null) {
@@ -307,7 +309,7 @@ public final class MergeHelper {
           current = parent;
         }
         else {
-          preData = current.getNeighbours(StatEdge.TYPE_REGULAR, Statement.DIRECTION_BACKWARD).get(0);
+          preData = current.getNeighbours(EdgeType.REGULAR, Statement.DIRECTION_BACKWARD).get(0);
           preData = getLastDirectData(preData);
           if (preData != null && !preData.getExprents().isEmpty()) {
             initDoExprent = preData.getExprents().get(preData.getExprents().size() - 1);
@@ -324,14 +326,14 @@ public final class MergeHelper {
     }
 
     if (hasinit || issingle) {  // FIXME: issingle sufficient?
-      Set<Statement> set = stat.getNeighboursSet(StatEdge.TYPE_CONTINUE, Statement.DIRECTION_BACKWARD);
+      Set<Statement> set = stat.getNeighboursSet(EdgeType.CONTINUE, Statement.DIRECTION_BACKWARD);
       set.remove(lastData);
 
       if (!set.isEmpty()) {
         return;
       }
 
-      stat.setLooptype(DoStatement.LOOP_FOR);
+      stat.setLoopType(LoopType.FOR);
       if (hasinit) {
         stat.setInitExprent(preData.getExprents().remove(preData.getExprents().size() - 1));
       }
@@ -357,7 +359,7 @@ public final class MergeHelper {
     }
     else {
       for (StatEdge edge : stat.getAllPredecessorEdges()) {
-        edge.getSource().changeEdgeType(Statement.DIRECTION_FORWARD, edge, StatEdge.TYPE_CONTINUE);
+        edge.getSource().changeEdgeType(Statement.DIRECTION_FORWARD, edge, EdgeType.CONTINUE);
 
         stat.removePredecessor(edge);
         edge.getSource().changeEdgeNode(Statement.DIRECTION_FORWARD, edge, dostat);
