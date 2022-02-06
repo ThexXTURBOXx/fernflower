@@ -11,11 +11,12 @@ import org.jetbrains.java.decompiler.main.rels.MethodWrapper;
 import org.jetbrains.java.decompiler.modules.decompiler.StatEdge.EdgeType;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.*;
 import org.jetbrains.java.decompiler.modules.decompiler.stats.*;
+import org.jetbrains.java.decompiler.modules.decompiler.stats.Statement.StatementType;
 import org.jetbrains.java.decompiler.struct.gen.VarType;
+import org.jetbrains.java.decompiler.util.Compat;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import org.jetbrains.java.decompiler.util.Compat;
 
 import static org.jetbrains.java.decompiler.main.extern.IFernflowerLogger.Severity;
 
@@ -146,10 +147,10 @@ public final class SwitchHelper {
       while (parent != null) {
         boolean removed = false;
         List<Exprent> varExprents;
-        if (parent.getFirst().type == Statement.TYPE_BASIC_BLOCK) {
+        if (parent.getFirst().type == StatementType.BASIC_BLOCK) {
           varExprents = parent.getFirst().getExprents();
         }
-        else if (parent.type == Statement.TYPE_TRY_CATCH) {
+        else if (parent.type == StatementType.TRY_CATCH) {
           varExprents = parent.getVarDefinitions();
         }
         else {
@@ -251,7 +252,7 @@ public final class SwitchHelper {
         SwitchStatement secondSwitch = null;
         Map<Integer, String> mappedCaseLabelValues = new HashMap<>();
         for (Statement statement : firstSwitch.getCaseStatements()) {
-          if (statement.type != Statement.TYPE_IF) {
+          if (statement.type != StatementType.IF) {
             Statement defaultStatement = firstSwitch.getDefaultEdge().getDestination();
             if (defaultStatement != statement) return null;
             continue;
@@ -275,10 +276,10 @@ public final class SwitchHelper {
 
           if (ifStatement.getLabelEdges().size() != 1) return null;
           Statement edgeDestination = ifStatement.getLabelEdges().iterator().next().getDestination();
-          if (edgeDestination.type == Statement.TYPE_SEQUENCE) {
+          if (edgeDestination.type == StatementType.SEQUENCE) {
             edgeDestination = edgeDestination.getFirst();
           }
-          if (edgeDestination.type != Statement.TYPE_SWITCH) return null;
+          if (edgeDestination.type != StatementType.SWITCH) return null;
           // the switch should be the same for all case labels
           if (secondSwitch != null && secondSwitch != edgeDestination) return null;
           secondSwitch = (SwitchStatement)edgeDestination;
@@ -305,7 +306,7 @@ public final class SwitchHelper {
         Map<Integer, IfStatement> ifBodyStatements = new HashMap<>();
         VarExprent tempVar = null;
         for (Statement statement : switchStatement.getCaseStatements()) {
-          if (statement.type != Statement.TYPE_IF) {
+          if (statement.type != StatementType.IF) {
             Statement defaultStatement = switchStatement.getDefaultEdge().getDestination();
             if (defaultStatement != statement) return null;
             continue;
@@ -388,9 +389,9 @@ public final class SwitchHelper {
         Exprent secondSwitchSelector = secondSwitch.getHeadExprent();
         if (secondSwitchSelector == null || secondSwitchSelector.type != Exprent.EXPRENT_SWITCH) return;
         Statement firstStatementInFirstSwitch = firstSwitch.getFirst();
-        if (firstStatementInFirstSwitch.type != Statement.TYPE_BASIC_BLOCK) return;
+        if (firstStatementInFirstSwitch.type != StatementType.BASIC_BLOCK) return;
         Statement firstStatementInSecondSwitch = secondSwitch.getFirst();
-        if (firstStatementInSecondSwitch.type != Statement.TYPE_BASIC_BLOCK) return;
+        if (firstStatementInSecondSwitch.type != StatementType.BASIC_BLOCK) return;
 
         for (List<Exprent> values : secondSwitch.getCaseValues()) {
           for (int i = 0; i < values.size(); i++) {

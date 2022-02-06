@@ -22,7 +22,7 @@ public final class DoStatement extends Statement {
   private @NotNull LoopType loopType;
 
   private DoStatement() {
-    super(Statement.TYPE_DO);
+    super(StatementType.DO);
     initExprent.add(null);
     conditionExprent.add(null);
     incExprent.add(null);
@@ -37,7 +37,7 @@ public final class DoStatement extends Statement {
   }
 
   public static @Nullable Statement isHead(Statement head) {
-    if (head.getLastBasicType() == LASTBASICTYPE_GENERAL && !head.isMonitorEnter()) {
+    if (head.getLastBasicType() == StatementType.GENERAL && !head.isMonitorEnter()) {
       // at most one outgoing edge
       StatEdge edge = null;
       List<StatEdge> successorEdges = head.getSuccessorEdges(EdgeType.DIRECT_ALL);
@@ -49,7 +49,7 @@ public final class DoStatement extends Statement {
         return new DoStatement(head);
       }
       // continues
-      if (head.type != TYPE_DO && (edge == null || edge.getType() != EdgeType.REGULAR) &&
+      if (head.type != StatementType.DO && (edge == null || edge.getType() != EdgeType.REGULAR) &&
           head.getContinueSet().contains(head.getBasichead())) {
         return new DoStatement(head);
       }
@@ -62,7 +62,7 @@ public final class DoStatement extends Statement {
     TextBuffer buf = new TextBuffer();
     buf.append(ExprProcessor.listToJava(varDefinitions, indent, tracer));
     if (isLabeled()) {
-      buf.appendIndent(indent).append("label").append(this.id.toString()).append(":").appendLineSeparator();
+      buf.appendIndent(indent).append("label").append(Integer.toString(id)).append(":").appendLineSeparator();
       tracer.incrementCurrentSourceLine();
     }
     switch (loopType) {

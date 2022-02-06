@@ -5,6 +5,7 @@ import org.jetbrains.java.decompiler.code.CodeConstants;
 import org.jetbrains.java.decompiler.code.Instruction;
 import org.jetbrains.java.decompiler.code.InstructionSequence;
 import org.jetbrains.java.decompiler.code.cfg.BasicBlock;
+import org.jetbrains.java.decompiler.main.ClassesProcessor;
 import org.jetbrains.java.decompiler.main.DecompilerContext;
 import org.jetbrains.java.decompiler.main.collectors.BytecodeMappingTracer;
 import org.jetbrains.java.decompiler.modules.decompiler.StatEdge.EdgeType;
@@ -14,6 +15,7 @@ import org.jetbrains.java.decompiler.modules.decompiler.sforms.DirectNode;
 import org.jetbrains.java.decompiler.modules.decompiler.sforms.FlattenStatementsHelper;
 import org.jetbrains.java.decompiler.modules.decompiler.sforms.FlattenStatementsHelper.FinallyPathWrapper;
 import org.jetbrains.java.decompiler.modules.decompiler.stats.*;
+import org.jetbrains.java.decompiler.modules.decompiler.stats.Statement.StatementType;
 import org.jetbrains.java.decompiler.modules.decompiler.typeann.TypeAnnotationWriteHelper;
 import org.jetbrains.java.decompiler.modules.decompiler.vars.VarProcessor;
 import org.jetbrains.java.decompiler.struct.StructClass;
@@ -224,13 +226,13 @@ public class ExprProcessor implements CodeConstants {
   private static void collectCatchVars(Statement stat, FlattenStatementsHelper flatthelper, Map<String, VarExprent> map) {
     List<VarExprent> lst = null;
 
-    if (stat.type == Statement.TYPE_CATCH_ALL) {
+    if (stat.type == StatementType.CATCH_ALL) {
       CatchAllStatement catchall = (CatchAllStatement)stat;
       if (!catchall.isFinally()) {
         lst = catchall.getVars();
       }
     }
-    else if (stat.type == Statement.TYPE_TRY_CATCH) {
+    else if (stat.type == StatementType.TRY_CATCH) {
       lst = ((CatchStatement)stat).getVars();
     }
 
@@ -648,14 +650,14 @@ public class ExprProcessor implements CodeConstants {
     }
   }
 
-  public static String getTypeName(VarType type, List<TypeAnnotationWriteHelper> typePathWriteStack) {
-    return getTypeName(type, true, typePathWriteStack);
+  public static String getTypeName(VarType type, List<TypeAnnotationWriteHelper> typePathWriteHelper) {
+    return getTypeName(type, true, typePathWriteHelper);
   }
 
-  public static String getTypeName(VarType type, boolean getShort, List<TypeAnnotationWriteHelper> typePathWriteStack) {
+  public static String getTypeName(VarType type, boolean getShort, List<TypeAnnotationWriteHelper> typePathWriteHelper) {
     int tp = type.type;
     StringBuilder sb = new StringBuilder();
-    typePathWriteStack.removeIf(typeAnnotationWriteHelper -> {
+    typePathWriteHelper.removeIf(typeAnnotationWriteHelper -> {
       StructTypePathEntry path = typeAnnotationWriteHelper.getPaths().peek();
       if (path == null && type.arrayDim == 0) { // nested type
         typeAnnotationWriteHelper.writeTo(sb);
@@ -688,54 +690,82 @@ public class ExprProcessor implements CodeConstants {
     else if (tp == CodeConstants.TYPE_OBJECT) {
       String ret;
       if (getShort) {
-        ret = DecompilerContext.getImportCollector().getShortName(type.value);
+        ret = DecompilerContext.getImportCollector().getNestedName(type.value);
       } else {
         ret = buildJavaClassName(type.value);
       }
-
       if (ret == null) {
         // FIXME: a warning should be logged
         return UNDEFINED_TYPE_STRING;
       }
-
       String[] nestedClasses = ret.split("\\.");
-      for (int i = 0; i < nestedClasses.length; i++) {
-        String nestedType = nestedClasses[i];
-        if (i != 0) { // first annotation is written already
-          checkNestedTypeAnnotation(sb, typePathWriteStack);
-        }
-
-        sb.append(nestedType);
-        if (i != nestedClasses.length - 1) sb.append(".");
-      }
-
+      writeNestedClass(sb, nestedClasses, typePathWriteHelper);
       return sb.toString();
     }
 
     throw new RuntimeException("invalid type");
   }
 
-  public static void checkNestedTypeAnnotation(StringBuilder sb, List<TypeAnnotationWriteHelper> typePathWriteStack) {
-    typePathWriteStack.removeIf(typeAnnotationWriteHelper -> {
+  public static void writeNestedClass(StringBuilder sb, String[] nestedClasses, List<TypeAnnotationWriteHelper> typeAnnWriteHelper) {
+    List<ClassesProcessor.ClassNode> enclosingClasses = enclosingClassList();
+    for (int i = 0; i < nestedClasses.length; i++) {
+      String nestedType = nestedClasses[i];
+      boolean shouldWrite = true;
+      if (!enclosingClasses.isEmpty() && i != nestedClasses.length - 1) {
+        String enclosingType = enclosingClasses.remove(0).simpleName;
+        shouldWrite = !nestedType.equals(enclosingType);
+      }
+      if (i == 0) { // first annotation can be written already
+        if (!sb.toString().isEmpty()) shouldWrite= true; // write if annotation exists
+      } else {
+        shouldWrite |= checkNestedTypeAnnotation(sb, typeAnnWriteHelper); // if writing annotation, also write nested type
+      }
+      if (shouldWrite) {
+        sb.append(nestedType);
+        if (i != nestedClasses.length - 1) sb.append(".");
+      }
+    }
+  }
+
+  public static List<ClassesProcessor.ClassNode> enclosingClassList() {
+    ClassesProcessor.ClassNode enclosingClass = (ClassesProcessor.ClassNode) DecompilerContext.getProperty(
+      DecompilerContext.CURRENT_CLASS_NODE
+    );
+    List<ClassesProcessor.ClassNode> enclosingClassList = new ArrayList<>(Arrays.asList(enclosingClass));
+    while (enclosingClass.parent != null) {
+      enclosingClass = enclosingClass.parent;
+      enclosingClassList.add(0, enclosingClass);
+    }
+    return enclosingClassList.stream()
+      .filter(classNode -> classNode.type != ClassesProcessor.ClassNode.CLASS_ANONYMOUS &&
+                           classNode.type != ClassesProcessor.ClassNode.CLASS_LAMBDA
+      ).collect(Collectors.toList());
+  }
+
+  public static boolean checkNestedTypeAnnotation(StringBuilder sb, List<TypeAnnotationWriteHelper> typePathWriteHelper) {
+    Compat.VarReference<Boolean> wroteAnnotation = new Compat.VarReference<>(false);
+    typePathWriteHelper.removeIf(typeAnnotationWriteHelper -> {
       StructTypePathEntry path = typeAnnotationWriteHelper.getPaths().peek();
       if (path != null && path.getTypePathEntryKind() == StructTypePathEntry.Kind.NESTED.getOpcode()) {
         typeAnnotationWriteHelper.getPaths().pop();
         if (typeAnnotationWriteHelper.getPaths().isEmpty()) {
           typeAnnotationWriteHelper.writeTo(sb);
+          wroteAnnotation.obj = true;
           return true;
         }
       }
       return false;
     });
+    return wroteAnnotation.obj;
   }
 
-  public static String getCastTypeName(VarType type, List<TypeAnnotationWriteHelper> typePathWriteStack) {
-    return getCastTypeName(type, true, typePathWriteStack);
+  public static String getCastTypeName(VarType type, List<TypeAnnotationWriteHelper> typePathWriteHelper) {
+    return getCastTypeName(type, true, typePathWriteHelper);
   }
 
-  public static String getCastTypeName(VarType type, boolean getShort, List<TypeAnnotationWriteHelper> typePathWriteStack) {
+  public static String getCastTypeName(VarType type, boolean getShort, List<TypeAnnotationWriteHelper> typePathWriteHelper) {
     List<TypeAnnotationWriteHelper> arrayPaths = new ArrayList<>();
-    List<TypeAnnotationWriteHelper> notArrayPath = typePathWriteStack.stream().filter(stack -> {
+    List<TypeAnnotationWriteHelper> notArrayPath = typePathWriteHelper.stream().filter(stack -> {
       boolean isArrayPath = stack.getPaths().size() < type.arrayDim;
       if (stack.getPaths().size() > type.arrayDim) {
         for (int i = 0; i < type.arrayDim; i++) {
@@ -806,7 +836,7 @@ public class ExprProcessor implements CodeConstants {
     List<StatEdge> lstSuccs = stat.getSuccessorEdges(EdgeType.DIRECT_ALL);
     if (lstSuccs.size() == 1) {
       StatEdge edge = lstSuccs.get(0);
-      if (edge.getType() != EdgeType.REGULAR && edge.explicit && edge.getDestination().type != Statement.TYPE_DUMMY_EXIT) {
+      if (edge.getType() != EdgeType.REGULAR && edge.explicit && edge.getDestination().type != StatementType.DUMMY_EXIT) {
         buf.appendIndent(indent);
 
         if (EdgeType.BREAK.equals(edge.getType())) {
@@ -819,7 +849,7 @@ public class ExprProcessor implements CodeConstants {
         }
 
         if (edge.labeled) {
-          buf.append(" label").append(edge.closure.id.toString());
+          buf.append(" label").append(Integer.toString(edge.closure.id));
         }
         buf.append(";").appendLineSeparator();
         tracer.incrementCurrentSourceLine();

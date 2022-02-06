@@ -28,7 +28,7 @@ public final class CatchStatement extends Statement {
   // *****************************************************************************
 
   private CatchStatement() {
-    super(TYPE_TRY_CATCH);
+    super(StatementType.TRY_CATCH);
   }
 
   private CatchStatement(Statement head, Statement next, Set<Statement> setHandlers) {
@@ -61,7 +61,7 @@ public final class CatchStatement extends Statement {
   // *****************************************************************************
 
   public static Statement isHead(Statement head) {
-    if (head.getLastBasicType() != LASTBASICTYPE_GENERAL) {
+    if (head.getLastBasicType() != StatementType.GENERAL) {
       return null;
     }
 
@@ -82,7 +82,7 @@ public final class CatchStatement extends Statement {
         boolean handlerok = true;
 
         if (edge.getExceptions() != null && setHandlers.contains(stat)) {
-          if (stat.getLastBasicType() != LASTBASICTYPE_GENERAL) {
+          if (stat.getLastBasicType() != StatementType.GENERAL) {
             handlerok = false;
           }
           else {
@@ -139,7 +139,7 @@ public final class CatchStatement extends Statement {
     buf.append(ExprProcessor.listToJava(varDefinitions, indent, tracer));
 
     if (isLabeled()) {
-      buf.appendIndent(indent).append("label").append(this.id.toString()).append(":").appendLineSeparator();
+      buf.appendIndent(indent).append("label").append(Integer.toString(id)).append(":").appendLineSeparator();
       tracer.incrementCurrentSourceLine();
     }
 

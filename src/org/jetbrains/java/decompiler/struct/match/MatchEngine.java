@@ -5,13 +5,13 @@ import org.jetbrains.java.decompiler.modules.decompiler.exps.ExitExprent;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.Exprent;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.FunctionExprent;
 import org.jetbrains.java.decompiler.modules.decompiler.stats.IfStatement;
-import org.jetbrains.java.decompiler.modules.decompiler.stats.Statement;
+import org.jetbrains.java.decompiler.modules.decompiler.stats.Statement.StatementType;
 import org.jetbrains.java.decompiler.struct.gen.VarType;
 import org.jetbrains.java.decompiler.struct.match.IMatchable.MatchProperties;
 import org.jetbrains.java.decompiler.struct.match.MatchNode.RuleValue;
+import org.jetbrains.java.decompiler.util.Compat;
 
 import java.util.*;
-import org.jetbrains.java.decompiler.util.Compat;
 
 public class MatchEngine {
   @SuppressWarnings("SpellCheckingInspection")
@@ -39,13 +39,13 @@ public class MatchEngine {
     "name", MatchProperties.EXPRENT_FIELD_NAME);
 
   @SuppressWarnings("SpellCheckingInspection")
-  private static final Map<String, Integer> stat_type = Compat.mapOf(
-    "if", Statement.TYPE_IF,
-    "do", Statement.TYPE_DO,
-    "switch", Statement.TYPE_SWITCH,
-    "trycatch", Statement.TYPE_TRY_CATCH,
-    "basicblock", Statement.TYPE_BASIC_BLOCK,
-    "sequence", Statement.TYPE_SEQUENCE);
+  private static final Map<String, StatementType> stat_type = Compat.mapOf(
+    "if", StatementType.IF,
+    "do", StatementType.DO,
+    "switch", StatementType.SWITCH,
+    "trycatch", StatementType.TRY_CATCH,
+    "basicblock", StatementType.BASIC_BLOCK,
+    "sequence", StatementType.SEQUENCE);
 
   private static final Map<String, Integer> expr_type = Compat.mapOf(
     "array", Exprent.EXPRENT_ARRAY,

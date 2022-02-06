@@ -33,7 +33,7 @@ public final class CatchAllStatement extends Statement {
   // *****************************************************************************
 
   private CatchAllStatement() {
-    super(Statement.TYPE_CATCH_ALL);
+    super(StatementType.CATCH_ALL);
   }
 
   private CatchAllStatement(Statement head, Statement handler) {
@@ -65,7 +65,7 @@ public final class CatchAllStatement extends Statement {
   // *****************************************************************************
 
   public static Statement isHead(Statement head) {
-    if (head.getLastBasicType() != Statement.LASTBASICTYPE_GENERAL) {
+    if (head.getLastBasicType() != StatementType.GENERAL) {
       return null;
     }
 
@@ -77,7 +77,7 @@ public final class CatchAllStatement extends Statement {
     for (StatEdge edge : head.getSuccessorEdges(EdgeType.EXCEPTION)) {
       Statement exc = edge.getDestination();
 
-      if (edge.getExceptions() == null && exc.getLastBasicType() == LASTBASICTYPE_GENERAL && setHandlers.contains(exc)) {
+      if (edge.getExceptions() == null && exc.getLastBasicType() == StatementType.GENERAL && setHandlers.contains(exc)) {
         List<StatEdge> lstSuccs = exc.getSuccessorEdges(EdgeType.DIRECT_ALL);
         if (lstSuccs.isEmpty() || lstSuccs.get(0).getType() != EdgeType.REGULAR) {
 
@@ -105,12 +105,12 @@ public final class CatchAllStatement extends Statement {
 
     boolean labeled = isLabeled();
     if (labeled) {
-      buf.appendIndent(indent).append("label").append(this.id.toString()).append(":").appendLineSeparator();
+      buf.appendIndent(indent).append("label").append(Integer.toString(id)).append(":").appendLineSeparator();
       tracer.incrementCurrentSourceLine();
     }
 
     List<StatEdge> lstSuccs = first.getSuccessorEdges(EdgeType.DIRECT_ALL);
-    if (first.type == TYPE_TRY_CATCH && first.varDefinitions.isEmpty() && isFinally &&
+    if (first.type == StatementType.TRY_CATCH && first.varDefinitions.isEmpty() && isFinally &&
         !labeled && !first.isLabeled() && (lstSuccs.isEmpty() || !lstSuccs.get(0).explicit)) {
       TextBuffer content = ExprProcessor.jmpWrapper(first, indent, true, tracer);
       content.setLength(content.length() - new_line_separator.length());

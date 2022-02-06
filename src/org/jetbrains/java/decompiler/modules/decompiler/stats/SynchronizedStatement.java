@@ -26,7 +26,7 @@ public class SynchronizedStatement extends Statement {
   // *****************************************************************************
 
   public SynchronizedStatement() {
-    super(TYPE_SYNCHRONIZED);
+    super(StatementType.SYNCHRONIZED);
 
     headexprent.add(null);
   }
@@ -64,7 +64,7 @@ public class SynchronizedStatement extends Statement {
     buf.append(first.toJava(indent, tracer));
 
     if (isLabeled()) {
-      buf.appendIndent(indent).append("label").append(this.id.toString()).append(":").appendLineSeparator();
+      buf.appendIndent(indent).append("label").append(Integer.toString(id)).append(":").appendLineSeparator();
       tracer.incrementCurrentSourceLine();
     }
 

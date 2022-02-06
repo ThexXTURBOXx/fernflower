@@ -14,7 +14,8 @@ import org.jetbrains.java.decompiler.modules.decompiler.sforms.DirectNode;
 import org.jetbrains.java.decompiler.modules.decompiler.stats.DoStatement;
 import org.jetbrains.java.decompiler.modules.decompiler.stats.RootStatement;
 import org.jetbrains.java.decompiler.modules.decompiler.stats.Statement;
-import org.jetbrains.java.decompiler.modules.decompiler.vars.VarTypeProcessor;
+import org.jetbrains.java.decompiler.modules.decompiler.stats.Statement.StatementType;
+import org.jetbrains.java.decompiler.modules.decompiler.vars.VarProcessor;
 import org.jetbrains.java.decompiler.modules.decompiler.vars.VarVersionPair;
 import org.jetbrains.java.decompiler.struct.StructClass;
 import org.jetbrains.java.decompiler.struct.StructField;
@@ -415,7 +416,7 @@ public class NestedClassProcessor {
                 varName = enclosingMethod.varproc.getVarName(pair);
                 varType = enclosingMethod.varproc.getVarType(pair);
 
-                enclosingMethod.varproc.setVarFinal(pair, VarTypeProcessor.VAR_EXPLICIT_FINAL);
+                enclosingMethod.varproc.setVarFinal(pair, VarProcessor.VAR_EXPLICIT_FINAL);
               }
 
               if (pair.var == -1 || "this".equals(varName)) {
@@ -453,7 +454,7 @@ public class NestedClassProcessor {
               varName = enclosing_method.varproc.getVarName(entry.getValue());
               varType = enclosing_method.varproc.getVarType(entry.getValue());
 
-              enclosing_method.varproc.setVarFinal(entry.getValue(), VarTypeProcessor.VAR_EXPLICIT_FINAL);
+              enclosing_method.varproc.setVarFinal(entry.getValue(), VarProcessor.VAR_EXPLICIT_FINAL);
             }
 
             if (entry.getValue().var == -1 || "this".equals(varName)) {
@@ -601,7 +602,7 @@ public class NestedClassProcessor {
     String field = "";
 
     // parameter variable final
-    if (method.varproc.getVarFinal(new VarVersionPair(index, 0)) == VarTypeProcessor.VAR_NON_FINAL) {
+    if (method.varproc.getVarFinal(new VarVersionPair(index, 0)) == VarProcessor.VAR_NON_FINAL) {
       return null;
     }
 
@@ -780,13 +781,13 @@ public class NestedClassProcessor {
         stack.clear();
 
         switch (st.type) {
-          case Statement.TYPE_SEQUENCE:
+          case SEQUENCE:
             stack.addAll(0, st.getStats());
             break;
-          case Statement.TYPE_IF:
-          case Statement.TYPE_ROOT:
-          case Statement.TYPE_SWITCH:
-          case Statement.TYPE_SYNCHRONIZED:
+          case IF:
+          case ROOT:
+          case SWITCH:
+          case SYNCHRONIZED:
             stack.add(st.getFirst());
             break;
           default:
@@ -820,7 +821,7 @@ public class NestedClassProcessor {
             counter++;
           }
 
-          if (st.type == Statement.TYPE_DO) {
+          if (st.type == StatementType.DO) {
             DoStatement dost = (DoStatement)st;
 
             lst.addAll(dost.getInitExprentList());

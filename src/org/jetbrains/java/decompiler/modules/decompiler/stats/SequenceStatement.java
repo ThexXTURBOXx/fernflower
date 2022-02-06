@@ -20,7 +20,7 @@ public class SequenceStatement extends Statement {
   // *****************************************************************************
 
   private SequenceStatement() {
-    super(Statement.TYPE_SEQUENCE);
+    super(StatementType.SEQUENCE);
   }
 
   public SequenceStatement(List<? extends Statement> lst) {
@@ -57,7 +57,7 @@ public class SequenceStatement extends Statement {
 
   public static Statement isHead2Block(Statement head) {
 
-    if (head.getLastBasicType() != Statement.LASTBASICTYPE_GENERAL) {
+    if (head.getLastBasicType() != StatementType.GENERAL) {
       return null;
     }
 
@@ -74,7 +74,7 @@ public class SequenceStatement extends Statement {
       if (stat != head && stat.getPredecessorEdges(EdgeType.REGULAR).size() == 1
           && !stat.isMonitorEnter()) {
 
-        if (stat.getLastBasicType() == Statement.LASTBASICTYPE_GENERAL) {
+        if (stat.getLastBasicType() == StatementType.GENERAL) {
           if (DecHelper.checkStatementExceptions(Arrays.asList(head, stat))) {
             return new SequenceStatement(head, stat);
           }
@@ -93,7 +93,7 @@ public class SequenceStatement extends Statement {
     buf.append(ExprProcessor.listToJava(varDefinitions, indent, tracer));
 
     if (isLabeled) {
-      buf.appendIndent(indent++).append("label").append(this.id.toString()).append(": {").appendLineSeparator();
+      buf.appendIndent(indent++).append("label").append(Integer.toString(id)).append(": {").appendLineSeparator();
       tracer.incrementCurrentSourceLine();
     }
 
