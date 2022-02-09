@@ -1,6 +1,7 @@
 // Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.java.decompiler.modules.decompiler.exps;
 
+import java.util.Objects;
 import org.jetbrains.java.decompiler.main.DecompilerContext;
 import org.jetbrains.java.decompiler.main.collectors.BytecodeMappingTracer;
 import org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor;
@@ -81,6 +82,12 @@ public class AnnotationExprent extends Exprent {
     else {
       return ANNOTATION_NORMAL;
     }
+  }
+
+  // FIX: other classes use this implicitly...
+  @Override
+  public int hashCode() {
+    return Objects.hash(className, parNames, parValues);
   }
 
   @Override
