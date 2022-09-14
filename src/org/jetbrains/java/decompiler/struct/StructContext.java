@@ -1,6 +1,7 @@
 // Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.java.decompiler.struct;
 
+import java.nio.file.Paths;
 import org.jetbrains.java.decompiler.main.DecompilerContext;
 import org.jetbrains.java.decompiler.main.extern.IResultSaver;
 import org.jetbrains.java.decompiler.struct.lazy.LazyLoader;
@@ -138,7 +139,7 @@ public class StructContext {
         }
 
         String name = entry.getName();
-        Path testPath = Path.of(file.getAbsolutePath(), name);
+        Path testPath = Paths.get(file.getAbsolutePath(), name);
         if (!testPath.normalize().startsWith(file.toPath().normalize())) { // check for zip slip exploit
           throw new RuntimeException("Zip entry '" + entry.getName() + "' tries to escape target directory");
         }
